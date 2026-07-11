@@ -1,0 +1,332 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Ingestion Pipeline\n\nWatches a Google Drive folder for new FAQ documents, downloads each file, splits it into chunks, generates embeddings, and stores the vectors in Supabase for retrieval.",
+        "height": 720,
+        "width": 1100,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -100
+      ],
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Ingestion Pipeline"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_DRIVE_FOLDER_ID",
+          "mode": "list",
+          "cachedResultName": "FAQ",
+          "cachedResultUrl": ""
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        80
+      ],
+      "id": "88cfd65a-6055-4ec2-b6bc-ff4f0ea0dd59",
+      "name": "Google Drive Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        420,
+        80
+      ],
+      "id": "ebf83b41-58cc-4231-8f15-1b0540e416df",
+      "name": "Download file"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {
+          "queryName": "match_documents"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        740,
+        80
+      ],
+      "id": "c781cb98-da66-447d-bdad-8135a37505c4",
+      "name": "Supabase Vector Store"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsHuggingFaceInference",
+      "typeVersion": 1,
+      "position": [
+        620,
+        300
+      ],
+      "id": "ac0caf43-419e-4b0f-a57d-990f446445b3",
+      "name": "Embeddings HuggingFace Inference"
+    },
+    {
+      "parameters": {
+        "dataType": "binary",
+        "textSplittingMode": "custom",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        900,
+        300
+      ],
+      "id": "59c56a59-c86d-42f8-aded-54c9f48a3093",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "chunkSize": 200,
+        "chunkOverlap": 20,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        900,
+        480
+      ],
+      "id": "68396419-0024-42b7-8bac-187a13180cb4",
+      "name": "Recursive Character Text Splitter"
+    },
+    {
+      "parameters": {
+        "content": "## AI Chatbot Pipeline\n\nReceives user chat messages, routes them through an AI Agent powered by OpenRouter, and uses Supabase vector search as a RAG tool to answer FAQ and policy questions.",
+        "height": 720,
+        "width": 900,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        -100
+      ],
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "name": "AI Chatbot Pipeline"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        1160,
+        80
+      ],
+      "id": "0b7e4272-e93b-4769-8df4-b821edaf8b58",
+      "name": "When chat message received"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are an expert AI Customer Support Assistant for TechSolutions. Your primary goal is to provide helpful, professional, and accurate answers to user inquiries.\n\nCORE INSTRUCTIONS:\n1. TOOL USAGE (SUPABASE VECTOR): For ANY question related to FAQs, company policies, accounts, pricing, technical support, or security, you MUST explicitly trigger and query the connected Supabase vector search tool to retrieve the relevant knowledge base context. Do not guess or answer from your general knowledge if the query relates to the business operations.\n\n2. RAG GROUNDING: Base your answers strictly on the retrieved context from the Supabase database. Do not hallucinate or invent features, prices, or policies that are not present in the retrieved data.\n\n3. OUT-OF-CONTEXT HANDLING: If the user asks a company-related question and the Supabase tool returns no relevant information, politely inform the user that you don't have this specific information available right now and offer to connect them with a human support agent.\n\n4. TONE & STYLE: \n- Be polite, empathetic, and professional.\n- Keep your answers concise, clear, and easy to read using bullet points if necessary.\n- Always respond in the same language the user used to ask the question."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1480,
+        80
+      ],
+      "id": "1f78c3cf-41e9-486d-805f-eba0bc657ffc",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "deepseek/deepseek-v4-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1380,
+        300
+      ],
+      "id": "7cf25d96-0304-44d5-b409-3018866975a1",
+      "name": "OpenRouter Chat Model"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Call this tool ta access the policy and FAQ database",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {
+          "queryName": "match_documents"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        1580,
+        300
+      ],
+      "id": "18badf05-998d-4eeb-8e5c-fb03717a1165",
+      "name": "Supabase Vector Store1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsHuggingFaceInference",
+      "typeVersion": 1,
+      "position": [
+        1660,
+        480
+      ],
+      "id": "0ffee33c-6313-4413-b6b9-560dbc87afbb",
+      "name": "Embeddings HuggingFace Inference1"
+    }
+  ],
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings HuggingFace Inference": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings HuggingFace Inference1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
